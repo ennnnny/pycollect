@@ -32,14 +32,20 @@ jobs:
         id: collect
         run: |
           cd aggregate
-          python -u subscribe/collect.py -s
+          python -u subscribe/collect.py
 
       - name: Create/Update Gist
         env:
           GH_TOKEN: ${{ secrets.PAT}}
         run: |
           cd aggregate/data
-          gh gist edit ${{ secrets.GIST_ID }} --filename "${DATE}_proxies.yaml" --add < "proxies.yaml"
-          gh gist edit ${{ secrets.GIST_ID }} --filename "${DATE}_subscribes.txt" --add < "subscribes.txt"
-          gh gist edit ${{ secrets.GIST_ID }} --filename "${DATE}_domains.txt" --add < "domains.txt"
-          gh gist edit ${{ secrets.GIST_ID }} --filename "${DATE}_valid-domains.txt" --add < "valid-domains.txt"
+          gh gist edit ${{ secrets.GIST_ID }} --add "proxies.yaml"
+          gh gist edit ${{ secrets.GIST_ID }} --add "subscribes.txt"
+          gh gist edit ${{ secrets.GIST_ID }} --add "domains.txt"
+          gh gist edit ${{ secrets.GIST_ID }} --add "valid-domains.txt"
+
+      - name: Upload file
+        run: |
+          timestamp=$(date +%s)
+          tar -czvf "data-${timestamp}.tar.gz" aggregate/data
+          curl --location --request POST 'https://pic.paomian.party/api/upload?token=${{ secrets.TOKEN }}&tags=dingyue' --form "file=@data-${timestamp}.tar.gz"
