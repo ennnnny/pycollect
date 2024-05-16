@@ -32,7 +32,7 @@ jobs:
         id: collect
         run: |
           cd aggregate
-          python -u subscribe/collect.py
+          python -u subscribe/collect.py --skip
 
       - name: Create/Update Gist
         env:
@@ -43,6 +43,29 @@ jobs:
           gh gist edit ${{ secrets.GIST_ID }} --add "subscribes.txt"
           gh gist edit ${{ secrets.GIST_ID }} --add "domains.txt"
           gh gist edit ${{ secrets.GIST_ID }} --add "valid-domains.txt"
+          
+          new_content=$(cat subscribes.txt | tr -d '\r' | tr '\n' '\\n')
+          python -c "
+          import requests
+          import json
+          headers = {'Authorization': 'token ' + '${{ secrets.PAT }}'}
+          response = requests.get('https://api.github.com/gists/${{ secrets.GIST_ID2 }}', headers=headers)
+          if response.status_code == 200:
+            data = json.loads(response.text)
+            data2 = json.loads(data['files']['Sub-Store']['content'])
+            data2['subs'][2]['url'] = '$new_content'
+            data['files']['Sub-Store']['content'] = json.dumps(data2)
+            json_data = json.dumps(data)
+            update_response = requests.patch('https://api.github.com/gists/${{ secrets.GIST_ID2 }}', headers=headers, data=json_data)
+            
+            if update_response.status_code != 200:
+                print('Failed to update Gist')
+            else:
+                print('Gist updated')
+          else:
+            print('Failed to get Gist')
+          "
+          
 
       - name: Upload file
         run: |
