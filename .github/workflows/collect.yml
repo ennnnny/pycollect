@@ -31,14 +31,13 @@ jobs:
       - name: Collect Subscribe
         id: collect
         run: |
-          cd aggregate
           python -u subscribe/collect.py --skip
 
       - name: Create/Update Gist
         env:
           GH_TOKEN: ${{ secrets.PAT}}
         run: |
-          cd aggregate/data
+          cd data
           gh gist edit ${{ secrets.GIST_ID }} --add "proxies.yaml"
           gh gist edit ${{ secrets.GIST_ID }} --add "subscribes.txt"
           gh gist edit ${{ secrets.GIST_ID }} --add "domains.txt"
@@ -70,5 +69,5 @@ jobs:
       - name: Upload file
         run: |
           timestamp=$(date +%s)
-          tar -czvf "data-${timestamp}.tar.gz" aggregate/data
+          tar -czvf "data-${timestamp}.tar.gz" data
           curl --location --request POST 'https://pic.paomian.party/api/upload?token=${{ secrets.TOKEN }}&tags=dingyue' --form "file=@data-${timestamp}.tar.gz"
