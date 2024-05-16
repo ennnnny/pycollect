@@ -1,8 +1,8 @@
 name: Get Subscription Weekly
 
 on:
-#  schedule:
-#    - cron: '0 16 * * 6'  # 北京时间每周日凌晨执行
+  schedule:
+    - cron: '0 16 * * 5'  # 北京时间每周六凌晨执行
   workflow_dispatch: # 允许手动触发
 
 permissions:
@@ -43,7 +43,7 @@ jobs:
           gh gist edit ${{ secrets.GIST_ID }} --add "domains.txt"
           gh gist edit ${{ secrets.GIST_ID }} --add "valid-domains.txt"
           
-          new_content=$(cat subscribes.txt | tr -d '\r' | tr '\n' '\\n')
+          new_content=$(cat subscribes.txt)
           python -c "
           import requests
           import json
@@ -61,6 +61,7 @@ jobs:
                 print('Failed to update Gist')
             else:
                 print('Gist updated')
+                requests.get('https://sub2.paomian.party/${{ secrets.SUBSTORE }}/api/utils/backup?action=download')
           else:
             print('Failed to get Gist')
           "
