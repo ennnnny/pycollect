@@ -43,7 +43,6 @@ jobs:
           gh gist edit ${{ secrets.GIST_ID }} --add "domains.txt"
           gh gist edit ${{ secrets.GIST_ID }} --add "valid-domains.txt"
           
-          new_content=$(cat subscribes.txt)
           python -c "
           import requests
           import json
@@ -52,7 +51,12 @@ jobs:
           if response.status_code == 200:
             data = json.loads(response.text)
             data2 = json.loads(data['files']['Sub-Store']['content'])
-            data2['subs'][2]['url'] = '$new_content'
+          
+            file = open("subscribes.txt", "r")
+            content = file.read()
+            file.close()
+            data2['subs'][2]['url'] = content
+          
             data['files']['Sub-Store']['content'] = json.dumps(data2)
             json_data = json.dumps(data)
             update_response = requests.patch('https://api.github.com/gists/${{ secrets.GIST_ID2 }}', headers=headers, data=json_data)
