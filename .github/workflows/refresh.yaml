@@ -10,7 +10,7 @@ env:
   TZ: Asia/Shanghai
 
   # github access token
-  GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+  GITHUB_PAT: ${{ secrets.PAT }}
 
   # github username and gist id, separated by '/'
   GIST_LINK: ${{ secrets.GIST_LINK }}
@@ -23,7 +23,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: test
 
       - name: Prepare
         uses: actions/setup-python@v5

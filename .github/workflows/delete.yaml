@@ -1,7 +1,8 @@
 name: Delete
 on:
-  schedule:
-    - cron: "0 0 * * SUN"
+#  schedule:
+#    - cron: "0 0 * * SUN"
+  workflow_dispatch:
 
 jobs:
   del_runs:

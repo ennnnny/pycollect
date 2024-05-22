@@ -10,7 +10,7 @@ env:
   TZ: Asia/Shanghai
 
   # github access token
-  GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+  GITHUB_PAT: ${{ secrets.PAT }}
 
   # github username and gist id, separated by '/'
   GIST_LINK: ${{ secrets.GIST_LINK }}
@@ -23,7 +23,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: test
 
       - name: Prepare
         uses: actions/setup-python@v5
@@ -40,3 +40,41 @@ jobs:
 
       - name: Timestamp
         run: date
+
+      - name: Create/Update Gist
+        run: |
+          cd data
+          
+          python -c "
+          import requests
+          import json
+          headers = {'Authorization': 'token ' + '${{ secrets.PAT }}'}
+          response = requests.get('https://api.github.com/gists/${{ secrets.GIST_ID2 }}', headers=headers)
+          if response.status_code == 200:
+            data = json.loads(response.text)
+            data2 = json.loads(data['files']['Sub-Store']['content'])
+          
+            file = open("subscribes.txt", "r")
+            content = file.read()
+            file.close()
+            data2['subs'][2]['url'] = content
+          
+            data['files']['Sub-Store']['content'] = json.dumps(data2)
+            json_data = json.dumps(data)
+            update_response = requests.patch('https://api.github.com/gists/${{ secrets.GIST_ID2 }}', headers=headers, data=json_data)
+          
+            if update_response.status_code != 200:
+                print('Failed to update Gist')
+            else:
+                print('Gist updated')
+                requests.get('https://sub2.paomian.party/${{ secrets.SUBSTORE }}/api/utils/backup?action=download')
+          else:
+            print('Failed to get Gist')
+          "
+
+      - name: Upload file
+        run: |
+          timestamp=$(date +%s)
+          tar -czvf "data-${timestamp}.tar.gz" data
+          curl --location --request POST 'https://pic.paomian.party/api/upload?token=${{ secrets.TOKEN }}&tags=dingyue' --form "file=@data-${timestamp}.tar.gz"
+
