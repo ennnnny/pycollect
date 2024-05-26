@@ -37,8 +37,8 @@ jobs:
 
       - name: Check
         run: |
-          if [ -z "$GIST_PAT" ]; then
-              echo "Error: environment 'GIST_PAT' cannot be empty"
+          if [ -z "$PAT" ]; then
+              echo "Error: environment 'PAT' cannot be empty"
               exit 1
           fi
 
