@@ -10,7 +10,7 @@ if __name__ == "__main__":
     gist_id2 = os.environ.get("GIST_ID2", "")
     pat = os.environ.get("GITHUB_PAT", "")
     sub_store = os.environ.get("SUB_STORE", "")
-    
+
     headers = {'Authorization': 'token ' + pat}
     response = requests.get('https://api.github.com/gists/'+gist_id2, headers=headers)
     if response.status_code == 200:
@@ -33,4 +33,4 @@ if __name__ == "__main__":
             print('Gist updated')
             requests.get('https://sub2.paomian.party/'+sub_store+'/api/utils/backup?action=download')
     else:
-    print('Failed to get Gist')
+        print('Failed to get Gist')
