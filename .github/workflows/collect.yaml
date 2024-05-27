@@ -10,7 +10,7 @@ env:
   TZ: Asia/Shanghai
 
   # github access token
-  GITHUB_PAT: ${{ secrets.PAT }}
+  GIST_PAT: ${{ secrets.PAT }}
 
   # github username and gist id, separated by '/'
   GIST_LINK: ${{ secrets.GIST_LINK }}
@@ -40,8 +40,8 @@ jobs:
 
       - name: Check
         run: |
-          if [ -z "$GITHUB_PAT" ]; then
-              echo "Error: environment 'GITHUB_PAT' cannot be empty"
+          if [ -z "$GIST_PAT" ]; then
+              echo "Error: environment 'GIST_PAT' cannot be empty"
               exit 1
           fi
 
