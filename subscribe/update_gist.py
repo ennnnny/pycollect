@@ -8,7 +8,7 @@ DATA_BASE = os.path.join(PATH, "data")
 
 if __name__ == "__main__":
     gist_id2 = os.environ.get("GIST_ID2", "")
-    pat = os.environ.get("GITHUB_PAT", "")
+    pat = os.environ.get("GIST_PAT", "")
     sub_store = os.environ.get("SUB_STORE", "")
 
     headers = {'Authorization': 'token ' + pat}
