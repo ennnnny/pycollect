@@ -1,8 +1,8 @@
 name: Refresh
 on:
-  # performed every two hours, disabled by default, uncomment and modify as needed
-  # schedule:
-  #   - cron: "0 */2 * * *"
+  # performed every two hours
+#  schedule:
+#    - cron: "0 */2 * * *"
   workflow_dispatch:
 
 env:
@@ -54,7 +54,7 @@ jobs:
           fi
 
       - name: Refresh
-        run: python -u subscribe/collect.py --all --clean --overwrite --skip
+        run: python -u subscribe/collect.py --all --both --refresh --overwrite --skip
 
       - name: Timestamp
         run: date
