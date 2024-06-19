@@ -37,7 +37,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: test
+          ref: self
 
       - name: Prepare
         uses: actions/setup-python@v5
