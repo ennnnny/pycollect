@@ -12,20 +12,17 @@
 > 欢迎 Star 及 PR。对于质量较高且普适的爬取目标，亦可在 Issues 中列出，将在评估后选择性添加
 
 ## 使用方法
-> 略，自行探索。我才不会告诉你入口是 `collect.py` 和 `process.py`
+> 可前往 [Issue #91](https://github.com/wzdnzd/aggregator/issues/91) 食用**共享订阅**，量大质优。**请勿浪费**
+ 
+略，自行探索。我才不会告诉你入口是 `collect.py` 和 `process.py`。**强烈建议使用后者，前者只是个小玩具**，配置参考 `subscribe/config/config.default.json`，详细文档见 [DeepWiki](https://deepwiki.com/wzdnzd/aggregator)
 
-> 共享订阅链接（每天 12:00 及 20:00 自动更新）：
-+ **Clash**: https://imperialb.in/r/guuxbjhm
-+ **V2Ray**: https://imperialb.in/r/xcsrzcfa
-+ **SingBox**: https://imperialb.in/r/zedmtggy
-+ **Loon**: https://imperialb.in/r/edbaufm0
-+ **Surge**: https://imperialb.in/r/gbefuchp
-+ **QuantumultX**: https://imperialb.in/r/qvorfkrq
 
 ## 免责申明
 + 本项目仅用作学习爬虫技术，请勿滥用，不要通过此工具做任何违法乱纪或有损国家利益之事
 + 禁止使用该项目进行任何盈利活动，对一切非法使用所产生的后果，本人概不负责
 
-## Credits
-+ [Subconverter](https://github.com/asdlokj1qpi23/subconverter)
-+ [Mihomo](https://github.com/MetaCubeX/mihomo/tree/Meta)
+## 致谢
+1. <u>[Subconverter](https://github.com/asdlokj1qpi233/subconverter)</u>、<u>[Mihomo](https://github.com/MetaCubeX/mihomo)</u>
+
+2. 感谢 [![YXVM](https://support.nodeget.com/page/promotion?id=250)](https://yxvm.com)
+[NodeSupport](https://github.com/NodeSeekDev/NodeSupport) 赞助了本项目

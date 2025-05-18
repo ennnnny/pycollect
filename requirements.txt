@@ -2,3 +2,5 @@ PyYAML
 tqdm
 requests
 geoip2
+pycryptodomex
+fofa-hack

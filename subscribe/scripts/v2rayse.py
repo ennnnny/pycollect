@@ -26,9 +26,10 @@ from logger import logger
 from origin import Origin
 
 import subconverter
+from clash import QuotedStr, quoted_scalar
 
 # outbind type
-SUPPORT_TYPE = ["ss", "ssr", "vmess", "trojan", "snell", "vless", "hysteria2", "hysteria", "http", "socks5"]
+SUPPORT_TYPE = ["ss", "ssr", "vmess", "trojan", "snell", "vless", "hysteria2", "hysteria", "http", "socks5", "anytls"]
 
 # date format
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -114,6 +115,7 @@ def list_files(base: str, date: str, maxsize: int, last: datetime) -> list[str]:
     prefix, files = f"{base}?prefix={date}/", []
 
     while truncated and count < 3:
+        count += 1
         url = prefix if not marker else f"{prefix}&marker={marker}"
         try:
             content = utils.http_get(url=url)
@@ -153,7 +155,6 @@ def list_files(base: str, date: str, maxsize: int, last: datetime) -> list[str]:
 
                 files.append(f"{base}/{name}")
         except:
-            count += 1
             logger.error(f"[V2RaySE] list files error, date: {date}, marker: {marker}")
 
     return files
@@ -175,14 +176,26 @@ def fetchone(
     proxies, subscriptions = [], []
 
     if not utils.isb64encode(content=content):
-        regex = r"(?:https?://)?(?:[a-zA-Z0-9\u4e00-\u9fa5\-]+\.)+[a-zA-Z0-9\u4e00-\u9fa5\-]+(?:(?:(?:/index.php)?/api/v1/client/subscribe\?token=[a-zA-Z0-9]{16,32})|(?:/link/[a-zA-Z0-9]+\?(?:sub|mu|clash)=\d))"
+        regex = r"(?:https?://)?(?:[a-zA-Z0-9\u4e00-\u9fa5\-]+\.)+[a-zA-Z0-9\u4e00-\u9fa5\-]+(?:(?:(?:/index.php)?/api/v1/client/subscribe\?token=[a-zA-Z0-9]{16,32})|(?:/link/[a-zA-Z0-9]+\?(?:sub|mu|clash)=\d)|(?:/(?:s|sub)/[a-zA-Z0-9]{32}))|https://jmssub\.net/members/getsub\.php\?service=\d+&id=[a-zA-Z0-9\-]{36}(?:\S+)?"
         groups = re.findall(regex, content, flags=re.I)
         if groups:
             subscriptions = list(set([utils.url_complete(x) for x in groups if x]))
 
     if not noproxies:
         try:
-            proxies = AirPort.decode(text=content, program=subconverter, special=SPECIAL_PROTOCOLS, throw=True)
+            index = url.rfind("/")
+            if index != -1:
+                name = url[index + 1 :]
+            else:
+                name = utils.random_chars(length=6, punctuation=False)
+
+            proxies = AirPort.decode(
+                text=content,
+                program=subconverter,
+                artifact=name,
+                special=SPECIAL_PROTOCOLS,
+                throw=True,
+            )
 
             # detect if it contains shared proxy nodes
             if detect(
@@ -217,9 +230,11 @@ def fetch(params: dict) -> list:
         logger.error(f"[V2RaySE] skip collect data due to parameter 'url' missing")
         return []
 
-    persist = params.get("persist", {})
-    pushtool = push.get_instance(engine=params.get("engine", ""))
-    if not persist or type(persist) != dict or not pushtool.validate(persist.get("proxies", {})):
+    storage = params.get("storage", {})
+    pushtool = push.get_instance(config=push.PushConfig.from_dict(storage))
+
+    persist = storage.get("items", {})
+    if not persist or type(persist) != dict or not pushtool.validate(config=persist.get("proxies", {})):
         logger.error(f"[V2RaySE] invalid persist config, please check it and try again")
         return []
 
@@ -236,7 +251,7 @@ def fetch(params: dict) -> list:
     proxies_store = persist.get("proxies", {})
     modified_store = persist.get("modified", {})
 
-    history_url = pushtool.raw_url(push_conf=modified_store)
+    history_url = pushtool.raw_url(config=modified_store)
     last = last_history(url=history_url, interval=interval)
 
     dates, manual = params.get("dates", []), True
@@ -293,6 +308,7 @@ def fetch(params: dict) -> list:
     generate = os.path.join(datapath, "generate.ini")
 
     with open(filepath, "w+", encoding="utf8") as f:
+        yaml.add_representer(QuotedStr, quoted_scalar)
         yaml.dump(data, f, allow_unicode=True)
 
     if os.path.exists(generate) and os.path.isfile(generate):
@@ -301,6 +317,7 @@ def fetch(params: dict) -> list:
     success = subconverter.generate_conf(generate, artifact, source, dest, "mixed")
     if not success:
         logger.error(f"[V2RaySE] cannot generate subconverter config file")
+        yaml.add_representer(QuotedStr, quoted_scalar)
         content = yaml.dump(data=data, allow_unicode=True)
     else:
         _, program = which_bin()
@@ -322,7 +339,7 @@ def fetch(params: dict) -> list:
         # clean workspace
         workflow.cleanup(datapath, filenames=[source, dest, "generate.ini"])
 
-    success = pushtool.push_to(content=content, push_conf=proxies_store, group="v2rayse")
+    success = pushtool.push_to(content=content or " ", config=proxies_store, group="v2rayse")
     if not success:
         filename = os.path.join(os.path.dirname(datapath), "data", "v2rayse.txt")
         logger.error(f"[V2RaySE] failed to storage {len(proxies)} proxies, will save it to local file {filename}")
@@ -331,12 +348,12 @@ def fetch(params: dict) -> list:
         return tasks
 
     # save last modified time
-    if not manual and pushtool.validate(push_conf=modified_store):
+    if not manual and pushtool.validate(config=modified_store):
         content = json.dumps({LAST_MODIFIED: begin})
-        pushtool.push_to(content=content, push_conf=modified_store, group="modified")
+        pushtool.push_to(content=content, config=modified_store, group="modified")
 
     config = params.get("config", {})
-    config["sub"] = pushtool.raw_url(push_conf=proxies_store)
+    config["sub"] = pushtool.raw_url(config=proxies_store)
     config["saved"] = True
     config["name"] = "v2rayse" if not config.get("name", "") else config.get("name")
     config["push_to"] = list(set(config.get("push_to", [])))
