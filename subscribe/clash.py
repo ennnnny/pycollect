@@ -33,6 +33,14 @@ DOWNLOAD_URL = [
 EXTERNAL_CONTROLLER = "127.0.0.1:9090"
 
 
+class QuotedStr(str):
+    pass
+
+
+def quoted_scalar(dumper, data):
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style='"')
+
+
 def generate_config(path: str, proxies: list, filename: str) -> list:
     os.makedirs(path, exist_ok=True)
     external_config = filter_proxies(proxies)
@@ -45,6 +53,10 @@ def generate_config(path: str, proxies: list, filename: str) -> list:
 
     config.update(external_config)
     with open(os.path.join(path, filename), "w+", encoding="utf8") as f:
+        # avoid mihomo error: invalid REALITY short ID see: https://github.com/MetaCubeX/mihomo/blob/Meta/adapter/outbound/reality.go#L35
+        yaml.add_representer(QuotedStr, quoted_scalar)
+
+        # write to file
         yaml.dump(config, f, allow_unicode=True)
 
     return config.get("proxies", [])
@@ -135,7 +147,7 @@ def proxies_exists(proxy: dict, hosts: dict) -> bool:
     protocol = proxy.get("type", "")
     if protocol == "http" or protocol == "socks5":
         return True
-    elif protocol == "ss" or protocol == "trojan":
+    elif protocol in ["ss", "trojan", "anytls", "hysteria2"]:
         return any(p.get("password", "") == proxy.get("password", "") for p in proxies)
     elif protocol == "ssr":
         return any(
@@ -149,8 +161,6 @@ def proxies_exists(proxy: dict, hosts: dict) -> bool:
         if proxy.get("token", ""):
             return any(p.get("token", "") == proxy.get("token", "") for p in proxies)
         return any(p.get("uuid", "") == proxy.get("uuid", "") for p in proxies)
-    elif protocol == "hysteria2":
-        return any(p.get("password", "") == proxy.get("password", "") for p in proxies)
     elif protocol == "hysteria":
         key = "auth-str" if "auth-str" in proxy else "auth_str"
         value = proxy.get(key, "")
@@ -163,7 +173,7 @@ def proxies_exists(proxy: dict, hosts: dict) -> bool:
     return False
 
 
-SS_SUPPORTED_CIPHERS = [
+COMMON_SS_SUPPORTED_CIPHERS = [
     "aes-128-gcm",
     "aes-192-gcm",
     "aes-256-gcm",
@@ -187,7 +197,31 @@ MIHOMO_SS_SUPPORTED_CIPHERS_SALT_LEN = {
     "2022-blake3-chacha20-poly1305": 32,
 }
 
-MIHOMO_SS_SUPPORTED_CIPHERS = list(MIHOMO_SS_SUPPORTED_CIPHERS_SALT_LEN.keys())
+MIHOMO_SS_SUPPORTED_CIPHERS = (
+    COMMON_SS_SUPPORTED_CIPHERS
+    + list(MIHOMO_SS_SUPPORTED_CIPHERS_SALT_LEN.keys())
+    + [
+        "aes-128-ccm",
+        "aes-192-ccm",
+        "aes-256-ccm",
+        "aes-128-gcm-siv",
+        "aes-256-gcm-siv",
+        "chacha20",
+        "chacha8-ietf-poly1305",
+        "xchacha8-ietf-poly1305",
+        "lea-128-gcm",
+        "lea-192-gcm",
+        "lea-256-gcm",
+        "rabbit128-poly1305",
+        "aegis-128l",
+        "aegis-256",
+        "aez-384",
+        "deoxys-ii-256-128",
+        "none",
+    ]
+)
+
+SSR_SUPPORTED_CIPHERS = COMMON_SS_SUPPORTED_CIPHERS + ["dummy", "none"]
 
 SSR_SUPPORTED_OBFS = [
     "plain",
@@ -209,7 +243,7 @@ SSR_SUPPORTED_PROTOCOL = [
 
 VMESS_SUPPORTED_CIPHERS = ["auto", "aes-128-gcm", "chacha20-poly1305", "none"]
 
-SPECIAL_PROTOCOLS = set(["vless", "tuic", "hysteria", "hysteria2"])
+SPECIAL_PROTOCOLS = set(["vless", "tuic", "hysteria", "hysteria2", "anytls"])
 
 # xtls-rprx-direct and xtls-rprx-origin are deprecated and no longer supported
 # XTLS_FLOWS = set(["xtls-rprx-direct", "xtls-rprx-origin", "xtls-rprx-vision"])
@@ -260,7 +294,7 @@ def verify(item: dict, mihomo: bool = True) -> bool:
 
     try:
         # name must be string
-        name = str(item.get("name", "")).strip().upper()
+        name = str(item.get("name", "")).strip()
         if not name:
             return False
         item["name"] = name
@@ -285,13 +319,13 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                 return False
 
         for attribute in ["udp", "tls", "skip-cert-verify", "tfo"]:
-            if attribute in item and item[attribute] not in [False, True]:
+            if attribute in item and type(item[attribute]) != bool:
                 return False
 
         authentication = "password"
 
         if item["type"] == "ss":
-            ciphers = set(SS_SUPPORTED_CIPHERS if not mihomo else SS_SUPPORTED_CIPHERS + MIHOMO_SS_SUPPORTED_CIPHERS)
+            ciphers = COMMON_SS_SUPPORTED_CIPHERS if not mihomo else MIHOMO_SS_SUPPORTED_CIPHERS
             if item["cipher"] not in ciphers:
                 return False
 
@@ -327,7 +361,7 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                 ):
                     return False
         elif item["type"] == "ssr":
-            if item["cipher"] not in SS_SUPPORTED_CIPHERS:
+            if item["cipher"] not in SSR_SUPPORTED_CIPHERS:
                 return False
             if item["obfs"] not in SSR_SUPPORTED_OBFS:
                 return False
@@ -348,7 +382,7 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                 return False
 
             # mihomo: https://wiki.metacubex.one/config/proxies/vmess/#cipher
-            ciphers = set(VMESS_SUPPORTED_CIPHERS + ["zero"] if mihomo else VMESS_SUPPORTED_CIPHERS)
+            ciphers = VMESS_SUPPORTED_CIPHERS + ["zero"] if mihomo else VMESS_SUPPORTED_CIPHERS
             if item["cipher"] not in ciphers:
                 return False
             if "alterId" not in item or not utils.is_number(item["alterId"]):
@@ -435,6 +469,14 @@ def verify(item: dict, mihomo: bool = True) -> bool:
             authentication = "psk"
             if "version" in item and not item["version"].isdigit():
                 return False
+
+            version = int(item.get("version", 1))
+            if version < 1 or version > 3:
+                return False
+            if version != 3:
+                # only version 3 supports UDP
+                item.pop("udp", None)
+
             if "obfs-opts" in item:
                 obfs_opts = item.get("obfs-opts", {})
                 if not obfs_opts or type(obfs_opts) != dict:
@@ -446,7 +488,15 @@ def verify(item: dict, mihomo: bool = True) -> bool:
         elif item["type"] == "http" or item["type"] == "socks5":
             authentication = "userpass"
         elif mihomo and item["type"] in SPECIAL_PROTOCOLS:
-            if item["type"] == "vless":
+            if item["type"] == "anytls":
+                if "alpn" in item and type(item["alpn"]) != list:
+                    return False
+
+                for property in ["idle-session-check-interval", "idle-session-timeout", "min-idle-session"]:
+                    if property in item and (not utils.is_number(item[property]) or int(item[property]) < 0):
+                        return False
+
+            elif item["type"] == "vless":
                 authentication = "uuid"
                 network = utils.trim(item.get("network", "tcp"))
 
@@ -457,8 +507,6 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                     return False
                 if "flow" in item:
                     flow = utils.trim(item.get("flow", ""))
-
-                    # if flow and flow not in XTLS_FLOWS:
                     if flow and flow != "xtls-rprx-vision":
                         return False
                 if "ws-opts" in item:
@@ -487,6 +535,13 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                         return False
                     if "public-key" not in reality_opts or type(reality_opts["public-key"]) != str:
                         return False
+
+                    content = utils.trim(reality_opts["public-key"])
+                    content += "=" * (4 - len(content) % 4)
+                    public_key = base64.urlsafe_b64decode(content)
+                    if len(public_key) != 32:
+                        return False
+
                     if "short-id" in reality_opts:
                         short_id = reality_opts["short-id"]
                         if type(short_id) != str:
@@ -498,7 +553,7 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                         if len(short_id) != 8 or not is_hex(short_id):
                             return False
 
-                        reality_opts["short-id"] = short_id
+                        reality_opts["short-id"] = QuotedStr(short_id)
             elif item["type"] == "tuic":
                 # mihomo: https://wiki.metacubex.one/config/proxies/tuic
                 token = wrap(item.get("token", ""))
@@ -520,7 +575,7 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                         item["password"] = password
 
                 for property in ["disable-sni", "reduce-rtt", "fast-open"]:
-                    if property in item and item[property] not in [False, True]:
+                    if property in item and type(item[property]) != bool:
                         return False
                 for property in [
                     "heartbeat-interval",
@@ -582,7 +637,7 @@ def verify(item: dict, mihomo: bool = True) -> bool:
                         if property in item and type(item[property]) != str:
                             return False
                     for property in ["disable_mtu_discovery", "fast-open"]:
-                        if property in item and item[property] not in [False, True]:
+                        if property in item and type(item[property]) != bool:
                             return False
                     if "protocol" in item:
                         protocol = utils.trim(item.get("protocol", ""))
@@ -609,7 +664,7 @@ def verify(item: dict, mihomo: bool = True) -> bool:
             return False
 
         if utils.is_number(item[authentication]):
-            item[authentication] = str(item[authentication])
+            item[authentication] = QuotedStr(item[authentication])
 
         return True
     except:
@@ -619,7 +674,7 @@ def verify(item: dict, mihomo: bool = True) -> bool:
 def check(proxy: dict, api_url: str, timeout: int, test_url: str, delay: int, strict: bool = False) -> bool:
     proxy_name = ""
     try:
-        proxy_name = urllib.parse.quote(proxy.get("name", ""))
+        proxy_name = urllib.parse.quote(proxy.get("name", ""), safe="")
     except:
         return False
 
